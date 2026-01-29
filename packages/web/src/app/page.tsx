@@ -5,8 +5,9 @@ import { SearchBar } from '@/components/SearchBar';
 import { SiteFilter } from '@/components/SiteFilter';
 import { ProductCard } from '@/components/ProductCard';
 import { SearchStatus } from '@/components/SearchStatus';
+import { SiteSearchLinks } from '@/components/SiteSearchLinks';
 import type { Product, SiteId, SearchResult, SiteSearchResult } from '@parts-search/core';
-import { SITE_INFO } from '@parts-search/core';
+import { SAMPLE_PRODUCTS } from '@parts-search/core';
 
 const ALL_SITES: SiteId[] = ['monotaro', 'misumi', 'amazon', 'hobuhin', 'askul', 'axel', 'aperza'];
 
@@ -27,28 +28,35 @@ export default function Home() {
     setError(null);
     setHasSearched(true);
 
-    try {
-      const params = new URLSearchParams({
-        keyword: searchKeyword,
-        sites: selectedSites.join(','),
-      });
+    // デモモード: サンプルデータから検索
+    await new Promise((resolve) => setTimeout(resolve, 500)); // ローディング演出
 
-      const response = await fetch(`/api/search?${params}`);
+    const lowerKeyword = searchKeyword.toLowerCase();
+    const filteredProducts = SAMPLE_PRODUCTS.filter(
+      (p) =>
+        selectedSites.includes(p.source) &&
+        (p.name.toLowerCase().includes(lowerKeyword) ||
+          p.partNumber?.toLowerCase().includes(lowerKeyword) ||
+          p.manufacturer?.toLowerCase().includes(lowerKeyword))
+    );
 
-      if (!response.ok) {
-        throw new Error('検索に失敗しました');
-      }
+    // サイトごとの結果を生成
+    const siteResultsMap: SiteSearchResult[] = selectedSites.map((siteId) => {
+      const siteProducts = filteredProducts.filter((p) => p.source === siteId);
+      return {
+        siteId,
+        siteName: siteId,
+        status: 'success' as const,
+        products: siteProducts,
+        totalCount: siteProducts.length,
+        hasMore: false,
+        executionTimeMs: Math.floor(Math.random() * 500) + 100,
+      };
+    });
 
-      const result: SearchResult = await response.json();
-      setProducts(result.products);
-      setSiteResults(result.siteResults);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '検索エラーが発生しました');
-      setProducts([]);
-      setSiteResults([]);
-    } finally {
-      setIsLoading(false);
-    }
+    setProducts(filteredProducts);
+    setSiteResults(siteResultsMap);
+    setIsLoading(false);
   };
 
   const handleSiteToggle = (siteId: SiteId) => {
@@ -78,6 +86,11 @@ export default function Home() {
         onSelectAll={handleSelectAll}
         onDeselectAll={handleDeselectAll}
       />
+
+      {/* 各サイトへの検索リンク */}
+      {keyword && (
+        <SiteSearchLinks keyword={keyword} selectedSites={selectedSites} />
+      )}
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
@@ -109,7 +122,23 @@ export default function Home() {
 
       {!isLoading && hasSearched && products.length === 0 && !error && (
         <div className="text-center py-12 text-gray-500">
-          検索結果が見つかりませんでした
+          サンプルデータに一致する結果がありませんでした。
+          <br />
+          上の「各サイトで検索」ボタンから実際のサイトで検索できます。
+        </div>
+      )}
+
+      {/* デモモード説明 */}
+      {!hasSearched && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h3 className="font-medium text-blue-800 mb-2">デモモード</h3>
+          <p className="text-sm text-blue-700 mb-3">
+            このアプリはデモモードで動作しています。検索するとサンプルデータが表示され、
+            各サイトへのリンクボタンから実際のサイトで検索できます。
+          </p>
+          <p className="text-sm text-blue-700">
+            <strong>サンプル検索ワード:</strong> ボルト、ナット、ベアリング、Oリング、ワッシャー、ベルト、シリンダー
+          </p>
         </div>
       )}
     </div>

@@ -36,7 +36,7 @@ export function SearchStatus({ keyword, totalCount, siteResults }: SearchStatusP
             >
               <span className="font-medium">{siteInfo?.name || result.siteId}</span>
               {result.status === 'success' ? (
-                <span>({result.products.length}件)</span>
+                <span>({result.totalCount}件)</span>
               ) : result.status === 'error' ? (
                 <span title={result.error}>エラー</span>
               ) : (
