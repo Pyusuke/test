@@ -28,35 +28,53 @@ export default function Home() {
     setError(null);
     setHasSearched(true);
 
-    // デモモード: サンプルデータから検索
-    await new Promise((resolve) => setTimeout(resolve, 500)); // ローディング演出
+    try {
+      // 実際のAPIを呼び出し
+      const params = new URLSearchParams({
+        keyword: searchKeyword,
+        sites: selectedSites.join(','),
+      });
 
-    const lowerKeyword = searchKeyword.toLowerCase();
-    const filteredProducts = SAMPLE_PRODUCTS.filter(
-      (p) =>
-        selectedSites.includes(p.source) &&
-        (p.name.toLowerCase().includes(lowerKeyword) ||
-          p.partNumber?.toLowerCase().includes(lowerKeyword) ||
-          p.manufacturer?.toLowerCase().includes(lowerKeyword))
-    );
+      const response = await fetch(`/api/search?${params}`);
 
-    // サイトごとの結果を生成
-    const siteResultsMap: SiteSearchResult[] = selectedSites.map((siteId) => {
-      const siteProducts = filteredProducts.filter((p) => p.source === siteId);
-      return {
-        siteId,
-        siteName: siteId,
-        status: 'success' as const,
-        products: siteProducts,
-        totalCount: siteProducts.length,
-        hasMore: false,
-        executionTimeMs: Math.floor(Math.random() * 500) + 100,
-      };
-    });
+      if (!response.ok) {
+        throw new Error('検索APIエラー');
+      }
 
-    setProducts(filteredProducts);
-    setSiteResults(siteResultsMap);
-    setIsLoading(false);
+      const result: SearchResult = await response.json();
+      setProducts(result.products);
+      setSiteResults(result.siteResults);
+    } catch (err) {
+      // APIエラー時はサンプルデータを表示
+      const lowerKeyword = searchKeyword.toLowerCase();
+      const filteredProducts = SAMPLE_PRODUCTS.filter(
+        (p) =>
+          selectedSites.includes(p.source) &&
+          (p.name.toLowerCase().includes(lowerKeyword) ||
+            p.partNumber?.toLowerCase().includes(lowerKeyword) ||
+            p.manufacturer?.toLowerCase().includes(lowerKeyword))
+      );
+
+      const siteResultsMap: SiteSearchResult[] = selectedSites.map((siteId) => {
+        const siteProducts = filteredProducts.filter((p) => p.source === siteId);
+        return {
+          siteId,
+          siteName: siteId,
+          status: 'error' as const,
+          products: siteProducts,
+          totalCount: siteProducts.length,
+          hasMore: false,
+          error: 'サイトへのアクセスがブロックされました',
+          executionTimeMs: 0,
+        };
+      });
+
+      setProducts(filteredProducts);
+      setSiteResults(siteResultsMap);
+      setError('一部のサイトへのアクセスがブロックされました。下のリンクから直接各サイトで検索できます。');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSiteToggle = (siteId: SiteId) => {
@@ -128,16 +146,16 @@ export default function Home() {
         </div>
       )}
 
-      {/* デモモード説明 */}
+      {/* 使い方説明 */}
       {!hasSearched && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="font-medium text-blue-800 mb-2">デモモード</h3>
+          <h3 className="font-medium text-blue-800 mb-2">使い方</h3>
           <p className="text-sm text-blue-700 mb-3">
-            このアプリはデモモードで動作しています。検索するとサンプルデータが表示され、
-            各サイトへのリンクボタンから実際のサイトで検索できます。
+            キーワードを入力して検索すると、各サイトから部品情報を取得します。
+            サイトへのアクセスがブロックされた場合は、各サイトへの直接リンクから検索できます。
           </p>
           <p className="text-sm text-blue-700">
-            <strong>サンプル検索ワード:</strong> ボルト、ナット、ベアリング、Oリング、ワッシャー、ベルト、シリンダー
+            <strong>検索例:</strong> ボルト M8、ベアリング 6200、Oリング、タイミングベルト
           </p>
         </div>
       )}
