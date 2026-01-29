@@ -1,11 +1,22 @@
 'use client';
 
-import { SITE_SEARCH_URLS, buildSearchUrl, type SiteId } from '@parts-search/core';
+import { SITE_SEARCH_URLS, buildSearchUrl } from '@parts-search/core';
+import type { SiteId } from '@parts-search/core';
 
 interface SiteSearchLinksProps {
   keyword: string;
   selectedSites: SiteId[];
 }
+
+const SITE_DESCRIPTIONS: Record<SiteId, string> = {
+  monotaro: '工業用品・工具の総合通販',
+  misumi: '機械部品・FA部品専門',
+  amazon: '総合EC・幅広い品揃え',
+  hobuhin: '保守・メンテナンス部品',
+  askul: 'オフィス・現場用品',
+  axel: '研究・実験用品（アズワン）',
+  aperza: '製造業向けマーケット',
+};
 
 export function SiteSearchLinks({ keyword, selectedSites }: SiteSearchLinksProps) {
   if (!keyword.trim()) return null;
@@ -15,39 +26,62 @@ export function SiteSearchLinks({ keyword, selectedSites }: SiteSearchLinksProps
     .filter(Boolean);
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-sm border">
-      <h3 className="text-sm font-medium text-gray-700 mb-3">
-        各サイトで「{keyword}」を検索
-      </h3>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2">
-        {sites.map((site) => (
-          <a
-            key={site.siteId}
-            href={buildSearchUrl(site.siteId, keyword)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 hover:shadow-md transition-all text-sm font-medium"
-            style={{
-              borderColor: site.logoColor,
-              color: site.logoColor,
-            }}
-          >
-            <span>{site.name}</span>
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+    <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+      <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3 border-b">
+        <h3 className="font-medium text-gray-800">
+          「<span className="text-blue-600">{keyword}</span>」を各サイトで検索
+        </h3>
+      </div>
+      <div className="p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {sites.map((site) => (
+            <a
+              key={site.siteId}
+              href={buildSearchUrl(site.siteId, keyword)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex items-start gap-3 p-3 rounded-lg border-2 hover:shadow-lg transition-all duration-200"
+              style={{
+                borderColor: `${site.logoColor}40`,
+                backgroundColor: `${site.logoColor}08`,
+              }}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-              />
-            </svg>
-          </a>
-        ))}
+              <div
+                className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm"
+                style={{ backgroundColor: site.logoColor }}
+              >
+                {site.name.slice(0, 2)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1">
+                  <span
+                    className="font-medium text-sm truncate"
+                    style={{ color: site.logoColor }}
+                  >
+                    {site.name}
+                  </span>
+                  <svg
+                    className="w-3.5 h-3.5 flex-shrink-0 opacity-60 group-hover:opacity-100 transition-opacity"
+                    style={{ color: site.logoColor }}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    />
+                  </svg>
+                </div>
+                <p className="text-xs text-gray-500 mt-0.5 truncate">
+                  {SITE_DESCRIPTIONS[site.siteId as SiteId]}
+                </p>
+              </div>
+            </a>
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -1,80 +1,56 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { SearchBar } from '@/components/SearchBar';
 import { SiteFilter } from '@/components/SiteFilter';
-import { ProductCard } from '@/components/ProductCard';
-import { SearchStatus } from '@/components/SearchStatus';
 import { SiteSearchLinks } from '@/components/SiteSearchLinks';
-import type { Product, SiteId, SearchResult, SiteSearchResult } from '@parts-search/core';
-import { SAMPLE_PRODUCTS } from '@parts-search/core';
+import { SearchHistory } from '@/components/SearchHistory';
+import type { SiteId } from '@parts-search/core';
 
 const ALL_SITES: SiteId[] = ['monotaro', 'misumi', 'amazon', 'hobuhin', 'askul', 'axel', 'aperza'];
+const HISTORY_KEY = 'parts-search-history';
+const MAX_HISTORY = 10;
 
 export default function Home() {
   const [keyword, setKeyword] = useState('');
   const [selectedSites, setSelectedSites] = useState<SiteId[]>(ALL_SITES);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [siteResults, setSiteResults] = useState<SiteSearchResult[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
 
-  const handleSearch = async (searchKeyword: string) => {
-    if (!searchKeyword.trim()) return;
-
-    setKeyword(searchKeyword);
-    setIsLoading(true);
-    setError(null);
-    setHasSearched(true);
-
-    try {
-      // 実際のAPIを呼び出し
-      const params = new URLSearchParams({
-        keyword: searchKeyword,
-        sites: selectedSites.join(','),
-      });
-
-      const response = await fetch(`/api/search?${params}`);
-
-      if (!response.ok) {
-        throw new Error('検索APIエラー');
+  // 検索履歴をローカルストレージから読み込み
+  useEffect(() => {
+    const saved = localStorage.getItem(HISTORY_KEY);
+    if (saved) {
+      try {
+        setSearchHistory(JSON.parse(saved));
+      } catch {
+        // ignore
       }
-
-      const result: SearchResult = await response.json();
-      setProducts(result.products);
-      setSiteResults(result.siteResults);
-    } catch (err) {
-      // APIエラー時はサンプルデータを表示
-      const lowerKeyword = searchKeyword.toLowerCase();
-      const filteredProducts = SAMPLE_PRODUCTS.filter(
-        (p) =>
-          selectedSites.includes(p.source) &&
-          (p.name.toLowerCase().includes(lowerKeyword) ||
-            p.partNumber?.toLowerCase().includes(lowerKeyword) ||
-            p.manufacturer?.toLowerCase().includes(lowerKeyword))
-      );
-
-      const siteResultsMap: SiteSearchResult[] = selectedSites.map((siteId) => {
-        const siteProducts = filteredProducts.filter((p) => p.source === siteId);
-        return {
-          siteId,
-          siteName: siteId,
-          status: 'error' as const,
-          products: siteProducts,
-          totalCount: siteProducts.length,
-          hasMore: false,
-          error: 'サイトへのアクセスがブロックされました',
-          executionTimeMs: 0,
-        };
-      });
-
-      setProducts(filteredProducts);
-      setSiteResults(siteResultsMap);
-      setError('一部のサイトへのアクセスがブロックされました。下のリンクから直接各サイトで検索できます。');
-    } finally {
-      setIsLoading(false);
     }
+  }, []);
+
+  // 検索履歴を保存
+  const saveToHistory = (term: string) => {
+    const newHistory = [term, ...searchHistory.filter((h) => h !== term)].slice(0, MAX_HISTORY);
+    setSearchHistory(newHistory);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(newHistory));
+  };
+
+  const handleSearch = (searchKeyword: string) => {
+    if (!searchKeyword.trim()) return;
+    setKeyword(searchKeyword);
+    setHasSearched(true);
+    saveToHistory(searchKeyword);
+  };
+
+  const handleHistoryClick = (term: string) => {
+    setKeyword(term);
+    setHasSearched(true);
+  };
+
+  const handleClearHistory = () => {
+    setSearchHistory([]);
+    localStorage.removeItem(HISTORY_KEY);
   };
 
   const handleSiteToggle = (siteId: SiteId) => {
@@ -95,7 +71,7 @@ export default function Home() {
 
   return (
     <div className="space-y-6">
-      <SearchBar onSearch={handleSearch} isLoading={isLoading} />
+      <SearchBar onSearch={handleSearch} isLoading={false} />
 
       <SiteFilter
         sites={ALL_SITES}
@@ -106,56 +82,50 @@ export default function Home() {
       />
 
       {/* 各サイトへの検索リンク */}
-      {keyword && (
+      {hasSearched && keyword && (
         <SiteSearchLinks keyword={keyword} selectedSites={selectedSites} />
       )}
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          {error}
-        </div>
-      )}
-
-      {hasSearched && !isLoading && (
-        <SearchStatus
-          keyword={keyword}
-          totalCount={products.length}
-          siteResults={siteResults}
-        />
-      )}
-
-      {isLoading && (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      )}
-
-      {!isLoading && products.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {products.map((product, index) => (
-            <ProductCard key={`${product.source}-${product.id}-${index}`} product={product} />
-          ))}
-        </div>
-      )}
-
-      {!isLoading && hasSearched && products.length === 0 && !error && (
-        <div className="text-center py-12 text-gray-500">
-          サンプルデータに一致する結果がありませんでした。
-          <br />
-          上の「各サイトで検索」ボタンから実際のサイトで検索できます。
-        </div>
-      )}
-
-      {/* 使い方説明 */}
+      {/* 検索前の説明と履歴 */}
       {!hasSearched && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="font-medium text-blue-800 mb-2">使い方</h3>
-          <p className="text-sm text-blue-700 mb-3">
-            キーワードを入力して検索すると、各サイトから部品情報を取得します。
-            サイトへのアクセスがブロックされた場合は、各サイトへの直接リンクから検索できます。
-          </p>
-          <p className="text-sm text-blue-700">
-            <strong>検索例:</strong> ボルト M8、ベアリング 6200、Oリング、タイミングベルト
+        <>
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-blue-900 mb-3">
+              部品検索ポータル
+            </h2>
+            <p className="text-sm text-blue-800 mb-4">
+              キーワードを入力すると、7つの部品サイトへの検索リンクが表示されます。
+              ワンクリックで各サイトの検索結果ページを開けます。
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {['ボルト M8', 'ベアリング 6200', 'Oリング P10', 'タイミングベルト'].map((example) => (
+                <button
+                  key={example}
+                  onClick={() => handleSearch(example)}
+                  className="px-3 py-1.5 bg-white text-blue-700 text-sm rounded-full border border-blue-300 hover:bg-blue-100 transition-colors"
+                >
+                  {example}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 検索履歴 */}
+          {searchHistory.length > 0 && (
+            <SearchHistory
+              history={searchHistory}
+              onSelect={handleHistoryClick}
+              onClear={handleClearHistory}
+            />
+          )}
+        </>
+      )}
+
+      {/* 検索後のヒント */}
+      {hasSearched && keyword && (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <p className="text-sm text-gray-600">
+            💡 上のボタンをクリックすると、各サイトの検索結果ページが新しいタブで開きます。
           </p>
         </div>
       )}
