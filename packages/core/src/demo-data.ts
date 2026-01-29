@@ -29,13 +29,13 @@ export const SITE_SEARCH_URLS: Record<SiteId, SiteLinkInfo> = {
   hobuhin: {
     siteId: 'hobuhin',
     name: '保守部品.com',
-    searchUrl: 'https://hoshubuhin.com/?s={keyword}',
+    searchUrl: 'https://hoshubuhin.com/search?search[query]={keyword}&submit.x=0&submit.y=0',
     logoColor: '#006400',
   },
   askul: {
     siteId: 'askul',
     name: 'ASKUL',
-    searchUrl: 'https://www.askul.co.jp/s/?searchWord={keyword}',
+    searchUrl: 'https://www.askul.co.jp/ksearch/?searchWord={keyword}&fluxSearch=ON',
     logoColor: '#FF0000',
   },
   axel: {
