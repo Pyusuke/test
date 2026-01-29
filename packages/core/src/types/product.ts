@@ -74,7 +74,7 @@ export const SITE_INFO: Record<SiteId, { name: string; url: string }> = {
   monotaro: { name: 'モノタロウ', url: 'https://www.monotaro.com' },
   misumi: { name: 'ミスミ', url: 'https://jp.misumi-ec.com' },
   amazon: { name: 'Amazon', url: 'https://www.amazon.co.jp' },
-  hobuhin: { name: '保守部品.com', url: 'https://www.hobuhin.com' },
+  hobuhin: { name: '保守部品.com', url: 'https://hoshubuhin.com' },
   askul: { name: 'ASKUL', url: 'https://www.askul.co.jp' },
   axel: { name: 'AXEL', url: 'https://axel.as-1.co.jp' },
   aperza: { name: 'アペルザ', url: 'https://www.aperza.com' },

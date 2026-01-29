@@ -29,25 +29,25 @@ export const SITE_SEARCH_URLS: Record<SiteId, SiteLinkInfo> = {
   hobuhin: {
     siteId: 'hobuhin',
     name: '保守部品.com',
-    searchUrl: 'https://www.hobuhin.co.jp/products/search?q={keyword}',
+    searchUrl: 'https://hoshubuhin.com/?s={keyword}',
     logoColor: '#006400',
   },
   askul: {
     siteId: 'askul',
     name: 'ASKUL',
-    searchUrl: 'https://www.askul.co.jp/usf/000073702/{keyword}/',
+    searchUrl: 'https://www.askul.co.jp/s/?searchWord={keyword}',
     logoColor: '#FF0000',
   },
   axel: {
     siteId: 'axel',
     name: 'AXEL',
-    searchUrl: 'https://axel.as-1.co.jp/asone/s/{keyword}/',
+    searchUrl: 'https://axel.as-1.co.jp/asone/keyword/?q={keyword}',
     logoColor: '#003399',
   },
   aperza: {
     siteId: 'aperza',
     name: 'アペルザ',
-    searchUrl: 'https://www.aperza.com/catalog/page/1/?q={keyword}',
+    searchUrl: 'https://www.aperza.com/catalog/top/?keyword={keyword}',
     logoColor: '#00A0E9',
   },
 };
