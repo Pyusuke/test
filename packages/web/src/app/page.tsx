@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { SearchBar } from '@/components/SearchBar';
 import { SiteFilter } from '@/components/SiteFilter';
-import { SiteSearchLinks } from '@/components/SiteSearchLinks';
+import { SearchResults } from '@/components/SearchResults';
 import { SearchHistory } from '@/components/SearchHistory';
 import { CategorySearch } from '@/components/CategorySearch';
 import type { SiteId } from '@parts-search/core';
@@ -82,9 +82,9 @@ export default function Home() {
         onDeselectAll={handleDeselectAll}
       />
 
-      {/* 各サイトへの検索リンク */}
+      {/* 検索結果 */}
       {hasSearched && keyword && (
-        <SiteSearchLinks keyword={keyword} selectedSites={selectedSites} />
+        <SearchResults keyword={keyword} selectedSites={selectedSites} />
       )}
 
       {/* 検索前の説明と履歴 */}
@@ -95,8 +95,8 @@ export default function Home() {
               部品検索ポータル
             </h2>
             <p className="text-sm text-blue-800 mb-4">
-              キーワードを入力すると、7つの部品サイトへの検索リンクが表示されます。
-              各リンクをクリックして、サイトごとの検索結果を確認できます。
+              キーワードを入力すると、7つの部品サイトから検索結果を取得します。
+              商品の画像・名前・価格を一覧で確認できます。
             </p>
             <div className="flex flex-wrap gap-2">
               {['ボルト M8', 'ベアリング 6200', 'Oリング P10', 'シーケンサ FX'].map((example) => (
@@ -129,7 +129,8 @@ export default function Home() {
       {hasSearched && keyword && (
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
           <p className="text-sm text-gray-600">
-            各カードをクリックすると、そのサイトの検索結果ページが新しいタブで開きます。
+            商品カードをクリックすると、各サイトの商品ページが新しいタブで開きます。
+            取得できなかったサイトはリンクから直接検索できます。
           </p>
         </div>
       )}

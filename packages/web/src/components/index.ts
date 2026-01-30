@@ -5,3 +5,4 @@ export { SearchStatus } from './SearchStatus';
 export { SiteSearchLinks } from './SiteSearchLinks';
 export { SearchHistory } from './SearchHistory';
 export { CategorySearch } from './CategorySearch';
+export { SearchResults } from './SearchResults';
