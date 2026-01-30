@@ -96,7 +96,7 @@ export default function Home() {
             </h2>
             <p className="text-sm text-blue-800 mb-4">
               キーワードを入力すると、7つの部品サイトへの検索リンクが表示されます。
-              「全サイトで検索」ボタンで、全サイトを一括で開けます。
+              各リンクをクリックして、サイトごとの検索結果を確認できます。
             </p>
             <div className="flex flex-wrap gap-2">
               {['ボルト M8', 'ベアリング 6200', 'Oリング P10', 'シーケンサ FX'].map((example) => (
@@ -128,13 +128,9 @@ export default function Home() {
       {/* 検索後のヒント */}
       {hasSearched && keyword && (
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <span className="text-lg">💡</span>
-            <div className="text-sm text-gray-600 space-y-1">
-              <p>各カードをクリックすると、そのサイトの検索結果ページが新しいタブで開きます。</p>
-              <p className="font-medium text-blue-600">「全サイトで検索」ボタンで、選択中の全サイトを一括で開けます。</p>
-            </div>
-          </div>
+          <p className="text-sm text-gray-600">
+            各カードをクリックすると、そのサイトの検索結果ページが新しいタブで開きます。
+          </p>
         </div>
       )}
     </div>

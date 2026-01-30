@@ -25,28 +25,12 @@ export function SiteSearchLinks({ keyword, selectedSites }: SiteSearchLinksProps
     .map((siteId) => SITE_SEARCH_URLS[siteId])
     .filter(Boolean);
 
-  const handleOpenAll = () => {
-    sites.forEach((site) => {
-      window.open(buildSearchUrl(site.siteId, keyword), '_blank');
-    });
-  };
-
   return (
     <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-      <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3 border-b flex items-center justify-between">
+      <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3 border-b">
         <h3 className="font-medium text-gray-800">
           「<span className="text-blue-600">{keyword}</span>」を各サイトで検索
         </h3>
-        <button
-          onClick={handleOpenAll}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-          </svg>
-          全サイトで検索
-          <span className="bg-blue-500 px-1.5 py-0.5 rounded text-xs">{sites.length}</span>
-        </button>
       </div>
       <div className="p-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">

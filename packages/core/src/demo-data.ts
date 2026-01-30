@@ -47,7 +47,7 @@ export const SITE_SEARCH_URLS: Record<SiteId, SiteLinkInfo> = {
   aperza: {
     siteId: 'aperza',
     name: 'アペルザ',
-    searchUrl: 'https://www.aperza.com/catalog/top/?keyword={keyword}',
+    searchUrl: 'https://www.aperza.com/ja/s/model/?k={keyword}&rf=1102&ss=1',
     logoColor: '#00A0E9',
   },
 };
