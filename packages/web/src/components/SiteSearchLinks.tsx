@@ -224,8 +224,16 @@ export function SiteSearchLinks({ keyword, selectedSites }: SiteSearchLinksProps
       </div>
 
       {/* 使い方ヒント */}
-      <div className="text-center text-xs text-gray-400">
-        ★をクリックしてお気に入りサイトを設定すると、次回から上部に表示されます
+      <div className="bg-gray-50 rounded-lg p-3 flex items-center justify-center gap-6 text-xs text-gray-500">
+        <span className="flex items-center gap-1">
+          <span className="text-base">🖱️</span> カードをクリックで検索
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="text-base">⭐</span> ★でお気に入り登録
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="text-base">📌</span> お気に入りは上部に表示
+        </span>
       </div>
     </div>
   );
