@@ -65,7 +65,7 @@ interface SiteResult {
 }
 
 const FAVORITES_KEY = 'parts-search-favorites';
-const CORS_PROXY = 'https://corsproxy.io/?';
+const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
 
 // HTMLパーサー（サイトごと）
 function parseProducts(html: string, siteId: SiteId, baseUrl: string): ProductPreview[] {
