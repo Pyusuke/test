@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { SITE_SEARCH_URLS, buildSearchUrl } from '@parts-search/core';
 import type { SiteId } from '@parts-search/core';
 
@@ -9,7 +9,7 @@ interface SiteSearchLinksProps {
   selectedSites: SiteId[];
 }
 
-// サイト情報（説明、得意分野、ヒント）
+// サイト情報
 const SITE_INFO: Record<SiteId, { description: string; strength: string; tip: string }> = {
   monotaro: {
     description: '工業用品・工具の総合通販',
@@ -48,10 +48,188 @@ const SITE_INFO: Record<SiteId, { description: string; strength: string; tip: st
   },
 };
 
+// 商品プレビュー型
+interface ProductPreview {
+  name: string;
+  price: string;
+  imageUrl?: string;
+  url: string;
+}
+
+// サイト結果型
+interface SiteResult {
+  siteId: SiteId;
+  status: 'loading' | 'success' | 'error';
+  products: ProductPreview[];
+  error?: string;
+}
+
 const FAVORITES_KEY = 'parts-search-favorites';
+const CORS_PROXY = 'https://corsproxy.io/?';
+
+// HTMLパーサー（サイトごと）
+function parseProducts(html: string, siteId: SiteId, baseUrl: string): ProductPreview[] {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const products: ProductPreview[] = [];
+
+  try {
+    switch (siteId) {
+      case 'amazon': {
+        const items = doc.querySelectorAll('[data-asin]:not([data-asin=""])');
+        items.forEach((item, i) => {
+          if (i >= 3) return;
+          const asin = item.getAttribute('data-asin');
+          const nameEl = item.querySelector('h2 a span, .a-text-normal');
+          const priceEl = item.querySelector('.a-price .a-offscreen, .a-price-whole');
+          const imgEl = item.querySelector('img.s-image');
+
+          if (nameEl && asin) {
+            products.push({
+              name: nameEl.textContent?.trim().slice(0, 50) || '',
+              price: priceEl?.textContent?.trim() || '価格を確認',
+              imageUrl: imgEl?.getAttribute('src') || undefined,
+              url: `https://www.amazon.co.jp/dp/${asin}`,
+            });
+          }
+        });
+        break;
+      }
+      case 'monotaro': {
+        const items = doc.querySelectorAll('.product-list-item, [class*="ProductItem"], [class*="product-item"]');
+        items.forEach((item, i) => {
+          if (i >= 3) return;
+          const linkEl = item.querySelector('a[href*="/p/"], a[href*="/g/"]');
+          const nameEl = item.querySelector('[class*="name"], [class*="Name"], h3, h4');
+          const priceEl = item.querySelector('[class*="price"], [class*="Price"]');
+          const imgEl = item.querySelector('img');
+
+          if (linkEl && nameEl) {
+            const href = linkEl.getAttribute('href') || '';
+            products.push({
+              name: nameEl.textContent?.trim().slice(0, 50) || '',
+              price: priceEl?.textContent?.trim().replace(/\s+/g, ' ') || '価格を確認',
+              imageUrl: imgEl?.getAttribute('src') || imgEl?.getAttribute('data-src') || undefined,
+              url: href.startsWith('http') ? href : `https://www.monotaro.com${href}`,
+            });
+          }
+        });
+        break;
+      }
+      case 'misumi': {
+        const items = doc.querySelectorAll('[class*="product"], [class*="Product"], [class*="item"]');
+        items.forEach((item, i) => {
+          if (i >= 3 || products.length >= 3) return;
+          const linkEl = item.querySelector('a[href*="/vona2/detail/"], a[href*="/vona/"]');
+          const nameEl = item.querySelector('[class*="name"], [class*="Name"], h3, h4, a');
+          const priceEl = item.querySelector('[class*="price"], [class*="Price"]');
+          const imgEl = item.querySelector('img');
+
+          if (nameEl && (linkEl || item.querySelector('a'))) {
+            const link = linkEl || item.querySelector('a');
+            const href = link?.getAttribute('href') || '';
+            if (href && nameEl.textContent?.trim()) {
+              products.push({
+                name: nameEl.textContent.trim().slice(0, 50),
+                price: priceEl?.textContent?.trim().replace(/\s+/g, ' ') || '価格を確認',
+                imageUrl: imgEl?.getAttribute('src') || imgEl?.getAttribute('data-src') || undefined,
+                url: href.startsWith('http') ? href : `https://jp.misumi-ec.com${href}`,
+              });
+            }
+          }
+        });
+        break;
+      }
+      default: {
+        // 汎用パーサー
+        const items = doc.querySelectorAll('[class*="product"], [class*="item"], [class*="result"]');
+        items.forEach((item, i) => {
+          if (i >= 3 || products.length >= 3) return;
+          const linkEl = item.querySelector('a[href]');
+          const nameEl = item.querySelector('h2, h3, h4, [class*="name"], [class*="title"]');
+          const priceEl = item.querySelector('[class*="price"]');
+          const imgEl = item.querySelector('img');
+
+          if (linkEl && nameEl && nameEl.textContent?.trim()) {
+            const href = linkEl.getAttribute('href') || '';
+            products.push({
+              name: nameEl.textContent.trim().slice(0, 50),
+              price: priceEl?.textContent?.trim().replace(/\s+/g, ' ') || '価格を確認',
+              imageUrl: imgEl?.getAttribute('src') || imgEl?.getAttribute('data-src') || undefined,
+              url: href.startsWith('http') ? href : `${baseUrl}${href}`,
+            });
+          }
+        });
+      }
+    }
+  } catch (e) {
+    console.error(`Parse error for ${siteId}:`, e);
+  }
+
+  return products;
+}
+
+// サイトからデータ取得
+async function fetchSiteProducts(siteId: SiteId, keyword: string): Promise<ProductPreview[]> {
+  const searchUrl = buildSearchUrl(siteId, keyword);
+  const proxyUrl = `${CORS_PROXY}${encodeURIComponent(searchUrl)}`;
+
+  const response = await fetch(proxyUrl, {
+    headers: {
+      'Accept': 'text/html,application/xhtml+xml',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const html = await response.text();
+  const baseUrl = new URL(searchUrl).origin;
+  return parseProducts(html, siteId, baseUrl);
+}
+
+// 商品プレビューカード
+function ProductPreviewCard({ product }: { product: ProductPreview }) {
+  return (
+    <a
+      href={product.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block p-2 bg-white rounded border hover:shadow-md transition-shadow"
+    >
+      {product.imageUrl && (
+        <div className="w-full h-16 mb-1 flex items-center justify-center bg-gray-50 rounded overflow-hidden">
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            className="max-w-full max-h-full object-contain"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        </div>
+      )}
+      <p className="text-xs text-gray-700 line-clamp-2 mb-1">{product.name}</p>
+      <p className="text-xs font-bold text-blue-600">{product.price}</p>
+    </a>
+  );
+}
+
+// ローディングスケルトン
+function ProductSkeleton() {
+  return (
+    <div className="p-2 bg-white rounded border animate-pulse">
+      <div className="w-full h-16 mb-1 bg-gray-200 rounded" />
+      <div className="h-3 bg-gray-200 rounded mb-1" />
+      <div className="h-3 w-1/2 bg-gray-200 rounded" />
+    </div>
+  );
+}
 
 export function SiteSearchLinks({ keyword, selectedSites }: SiteSearchLinksProps) {
   const [favorites, setFavorites] = useState<SiteId[]>([]);
+  const [results, setResults] = useState<Partial<Record<SiteId, SiteResult>>>({});
 
   // お気に入りをローカルストレージから読み込み
   useEffect(() => {
@@ -64,6 +242,48 @@ export function SiteSearchLinks({ keyword, selectedSites }: SiteSearchLinksProps
       }
     }
   }, []);
+
+  // 各サイトからデータ取得
+  const fetchAllSites = useCallback(async () => {
+    if (!keyword.trim()) return;
+
+    // 初期状態をローディングに設定
+    const initialResults: Partial<Record<SiteId, SiteResult>> = {};
+    selectedSites.forEach((siteId) => {
+      initialResults[siteId] = { siteId, status: 'loading', products: [] };
+    });
+    setResults(initialResults);
+
+    // 各サイトを並列で取得
+    selectedSites.forEach(async (siteId) => {
+      try {
+        const products = await fetchSiteProducts(siteId, keyword);
+        setResults((prev) => ({
+          ...prev,
+          [siteId]: {
+            siteId,
+            status: products.length > 0 ? 'success' : 'error',
+            products,
+            error: products.length === 0 ? '商品が見つかりませんでした' : undefined,
+          },
+        }));
+      } catch (error) {
+        setResults((prev) => ({
+          ...prev,
+          [siteId]: {
+            siteId,
+            status: 'error',
+            products: [],
+            error: error instanceof Error ? error.message : '取得に失敗しました',
+          },
+        }));
+      }
+    });
+  }, [keyword, selectedSites]);
+
+  useEffect(() => {
+    fetchAllSites();
+  }, [fetchAllSites]);
 
   // お気に入りを切り替え
   const toggleFavorite = (siteId: SiteId, e: React.MouseEvent) => {
@@ -94,7 +314,7 @@ export function SiteSearchLinks({ keyword, selectedSites }: SiteSearchLinksProps
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 border-b">
           <div className="flex items-center justify-between">
             <h3 className="font-medium text-gray-800">
-              「<span className="text-blue-600 font-semibold">{keyword}</span>」を各サイトで検索
+              「<span className="text-blue-600 font-semibold">{keyword}</span>」の検索結果
             </h3>
             <span className="text-xs text-gray-500">{sortedSites.length}サイト</span>
           </div>
@@ -109,19 +329,19 @@ export function SiteSearchLinks({ keyword, selectedSites }: SiteSearchLinksProps
 
         {/* サイトカード */}
         <div className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {sortedSites.map((site) => {
               const siteId = site.siteId as SiteId;
               const info = SITE_INFO[siteId];
               const isFavorite = favorites.includes(siteId);
+              const result = results[siteId];
+              const isLoading = result?.status === 'loading';
+              const hasProducts = result?.status === 'success' && result.products.length > 0;
 
               return (
-                <a
+                <div
                   key={site.siteId}
-                  href={buildSearchUrl(siteId, keyword)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group relative flex flex-col p-4 rounded-xl border-2 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+                  className="relative rounded-xl border-2 overflow-hidden"
                   style={{
                     borderColor: isFavorite ? site.logoColor : `${site.logoColor}40`,
                     backgroundColor: `${site.logoColor}05`,
@@ -130,7 +350,7 @@ export function SiteSearchLinks({ keyword, selectedSites }: SiteSearchLinksProps
                   {/* お気に入りボタン */}
                   <button
                     onClick={(e) => toggleFavorite(siteId, e)}
-                    className="absolute top-2 right-2 p-1.5 rounded-full hover:bg-white/80 transition-colors"
+                    className="absolute top-2 right-2 p-1.5 rounded-full hover:bg-white/80 transition-colors z-10"
                     title={isFavorite ? 'お気に入りから削除' : 'お気に入りに追加'}
                   >
                     <svg
@@ -151,72 +371,87 @@ export function SiteSearchLinks({ keyword, selectedSites }: SiteSearchLinksProps
                   </button>
 
                   {/* サイトヘッダー */}
-                  <div className="flex items-center gap-3 mb-3">
+                  <div className="p-3 flex items-center gap-3">
                     <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-base shadow-md"
+                      className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-md flex-shrink-0"
                       style={{ backgroundColor: site.logoColor }}
                     >
                       {site.name.slice(0, 2)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span
-                          className="font-bold text-base"
-                          style={{ color: site.logoColor }}
-                        >
+                        <span className="font-bold text-sm" style={{ color: site.logoColor }}>
                           {site.name}
                         </span>
-                        <svg
-                          className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity"
-                          style={{ color: site.logoColor }}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                          />
-                        </svg>
+                        {isLoading && (
+                          <span className="text-xs text-gray-400">取得中...</span>
+                        )}
+                        {hasProducts && (
+                          <span className="text-xs text-green-600 bg-green-100 px-1.5 py-0.5 rounded">
+                            {result.products.length}件取得
+                          </span>
+                        )}
+                        {result?.status === 'error' && (
+                          <span className="text-xs text-gray-400">リンクで検索</span>
+                        )}
                       </div>
                       <p className="text-xs text-gray-500">{info.description}</p>
                     </div>
                   </div>
 
-                  {/* サイト情報 */}
-                  <div className="space-y-2 mt-auto">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
-                        style={{
-                          backgroundColor: `${site.logoColor}15`,
-                          color: site.logoColor,
-                        }}
+                  {/* 商品プレビュー or リンク */}
+                  <div className="px-3 pb-3">
+                    {isLoading ? (
+                      <div className="grid grid-cols-3 gap-2">
+                        <ProductSkeleton />
+                        <ProductSkeleton />
+                        <ProductSkeleton />
+                      </div>
+                    ) : hasProducts ? (
+                      <div className="grid grid-cols-3 gap-2">
+                        {result.products.map((product, i) => (
+                          <ProductPreviewCard key={i} product={product} />
+                        ))}
+                      </div>
+                    ) : (
+                      <a
+                        href={buildSearchUrl(siteId, keyword)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block p-3 bg-white rounded-lg border text-center hover:shadow-md transition-shadow"
                       >
-                        {info.strength}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-400 flex items-center gap-1">
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                      {info.tip}
-                    </p>
-                  </div>
+                        <p className="text-sm text-gray-600 mb-1">
+                          {result?.error || 'サイトで検索'}
+                        </p>
+                        <span
+                          className="inline-flex items-center gap-1 text-sm font-medium"
+                          style={{ color: site.logoColor }}
+                        >
+                          {site.name}で検索
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </span>
+                      </a>
+                    )}
 
-                  {/* ホバー時のアクションヒント */}
-                  <div
-                    className="absolute inset-x-0 bottom-0 h-1 rounded-b-xl opacity-0 group-hover:opacity-100 transition-opacity"
-                    style={{ backgroundColor: site.logoColor }}
-                  />
-                </a>
+                    {/* もっと見るリンク（商品がある場合） */}
+                    {hasProducts && (
+                      <a
+                        href={buildSearchUrl(siteId, keyword)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 flex items-center justify-center gap-1 text-xs py-1.5 rounded hover:bg-white/50 transition-colors"
+                        style={{ color: site.logoColor }}
+                      >
+                        もっと見る
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </a>
+                    )}
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -226,13 +461,13 @@ export function SiteSearchLinks({ keyword, selectedSites }: SiteSearchLinksProps
       {/* 使い方ヒント */}
       <div className="bg-gray-50 rounded-lg p-3 flex items-center justify-center gap-6 text-xs text-gray-500">
         <span className="flex items-center gap-1">
-          <span className="text-base">🖱️</span> カードをクリックで検索
+          <span className="text-base">🖱️</span> 商品クリックで詳細へ
         </span>
         <span className="flex items-center gap-1">
           <span className="text-base">⭐</span> ★でお気に入り登録
         </span>
         <span className="flex items-center gap-1">
-          <span className="text-base">📌</span> お気に入りは上部に表示
+          <span className="text-base">🔗</span> 「もっと見る」で全件表示
         </span>
       </div>
     </div>
