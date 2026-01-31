@@ -52,6 +52,81 @@ export const SITE_SEARCH_URLS: Record<SiteId, SiteLinkInfo> = {
   },
 };
 
+// サイト取得設定
+export interface SiteFetchConfig {
+  /** 取得を試みるか */
+  fetchEnabled: boolean;
+  /** パース信頼度 (0-1) */
+  parseReliability: number;
+  /** タイムアウト(ms) */
+  timeout?: number;
+  /** 優先順位 (小さい=先に取得) */
+  priority: number;
+  /** 専用パーサーあり */
+  hasDedicatedParser: boolean;
+}
+
+export const SITE_FETCH_CONFIG: Record<SiteId, SiteFetchConfig> = {
+  amazon: {
+    fetchEnabled: true,
+    parseReliability: 0.85,
+    timeout: 8000,
+    priority: 1,
+    hasDedicatedParser: true,
+  },
+  monotaro: {
+    fetchEnabled: true,
+    parseReliability: 0.75,
+    timeout: 8000,
+    priority: 2,
+    hasDedicatedParser: true,
+  },
+  misumi: {
+    fetchEnabled: true,
+    parseReliability: 0.70,
+    timeout: 8000,
+    priority: 3,
+    hasDedicatedParser: true,
+  },
+  askul: {
+    fetchEnabled: true,
+    parseReliability: 0.60,
+    timeout: 8000,
+    priority: 4,
+    hasDedicatedParser: false,
+  },
+  axel: {
+    fetchEnabled: true,
+    parseReliability: 0.55,
+    timeout: 8000,
+    priority: 5,
+    hasDedicatedParser: false,
+  },
+  aperza: {
+    fetchEnabled: false,
+    parseReliability: 0.30,
+    priority: 6,
+    hasDedicatedParser: false,
+  },
+  hobuhin: {
+    fetchEnabled: false,
+    parseReliability: 0.25,
+    priority: 7,
+    hasDedicatedParser: false,
+  },
+};
+
+// ヘルパー関数
+export function getFetchableSites(siteIds: SiteId[]): SiteId[] {
+  return siteIds
+    .filter((id) => SITE_FETCH_CONFIG[id].fetchEnabled)
+    .sort((a, b) => SITE_FETCH_CONFIG[a].priority - SITE_FETCH_CONFIG[b].priority);
+}
+
+export function getNonFetchableSites(siteIds: SiteId[]): SiteId[] {
+  return siteIds.filter((id) => !SITE_FETCH_CONFIG[id].fetchEnabled);
+}
+
 export function buildSearchUrl(siteId: SiteId, keyword: string): string {
   const site = SITE_SEARCH_URLS[siteId];
   if (!site) return '#';

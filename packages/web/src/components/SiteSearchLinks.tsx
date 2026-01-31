@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { SITE_SEARCH_URLS, buildSearchUrl } from '@parts-search/core';
 import type { SiteId } from '@parts-search/core';
+import { useSiteProductFetch } from '@/hooks/useSiteProductFetch';
+import type { ProductPreview } from '@/utils/productParser';
 
 interface SiteSearchLinksProps {
   keyword: string;
@@ -48,146 +50,7 @@ const SITE_INFO: Record<SiteId, { description: string; strength: string; tip: st
   },
 };
 
-// 商品プレビュー型
-interface ProductPreview {
-  name: string;
-  price: string;
-  imageUrl?: string;
-  url: string;
-}
-
-// サイト結果型
-interface SiteResult {
-  siteId: SiteId;
-  status: 'loading' | 'success' | 'error';
-  products: ProductPreview[];
-  error?: string;
-}
-
 const FAVORITES_KEY = 'parts-search-favorites';
-const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
-
-// HTMLパーサー（サイトごと）
-function parseProducts(html: string, siteId: SiteId, baseUrl: string): ProductPreview[] {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  const products: ProductPreview[] = [];
-
-  try {
-    switch (siteId) {
-      case 'amazon': {
-        const items = doc.querySelectorAll('[data-asin]:not([data-asin=""])');
-        items.forEach((item, i) => {
-          if (i >= 3) return;
-          const asin = item.getAttribute('data-asin');
-          const nameEl = item.querySelector('h2 a span, .a-text-normal');
-          const priceEl = item.querySelector('.a-price .a-offscreen, .a-price-whole');
-          const imgEl = item.querySelector('img.s-image');
-
-          if (nameEl && asin) {
-            products.push({
-              name: nameEl.textContent?.trim().slice(0, 50) || '',
-              price: priceEl?.textContent?.trim() || '価格を確認',
-              imageUrl: imgEl?.getAttribute('src') || undefined,
-              url: `https://www.amazon.co.jp/dp/${asin}`,
-            });
-          }
-        });
-        break;
-      }
-      case 'monotaro': {
-        const items = doc.querySelectorAll('.product-list-item, [class*="ProductItem"], [class*="product-item"]');
-        items.forEach((item, i) => {
-          if (i >= 3) return;
-          const linkEl = item.querySelector('a[href*="/p/"], a[href*="/g/"]');
-          const nameEl = item.querySelector('[class*="name"], [class*="Name"], h3, h4');
-          const priceEl = item.querySelector('[class*="price"], [class*="Price"]');
-          const imgEl = item.querySelector('img');
-
-          if (linkEl && nameEl) {
-            const href = linkEl.getAttribute('href') || '';
-            products.push({
-              name: nameEl.textContent?.trim().slice(0, 50) || '',
-              price: priceEl?.textContent?.trim().replace(/\s+/g, ' ') || '価格を確認',
-              imageUrl: imgEl?.getAttribute('src') || imgEl?.getAttribute('data-src') || undefined,
-              url: href.startsWith('http') ? href : `https://www.monotaro.com${href}`,
-            });
-          }
-        });
-        break;
-      }
-      case 'misumi': {
-        const items = doc.querySelectorAll('[class*="product"], [class*="Product"], [class*="item"]');
-        items.forEach((item, i) => {
-          if (i >= 3 || products.length >= 3) return;
-          const linkEl = item.querySelector('a[href*="/vona2/detail/"], a[href*="/vona/"]');
-          const nameEl = item.querySelector('[class*="name"], [class*="Name"], h3, h4, a');
-          const priceEl = item.querySelector('[class*="price"], [class*="Price"]');
-          const imgEl = item.querySelector('img');
-
-          if (nameEl && (linkEl || item.querySelector('a'))) {
-            const link = linkEl || item.querySelector('a');
-            const href = link?.getAttribute('href') || '';
-            if (href && nameEl.textContent?.trim()) {
-              products.push({
-                name: nameEl.textContent.trim().slice(0, 50),
-                price: priceEl?.textContent?.trim().replace(/\s+/g, ' ') || '価格を確認',
-                imageUrl: imgEl?.getAttribute('src') || imgEl?.getAttribute('data-src') || undefined,
-                url: href.startsWith('http') ? href : `https://jp.misumi-ec.com${href}`,
-              });
-            }
-          }
-        });
-        break;
-      }
-      default: {
-        // 汎用パーサー
-        const items = doc.querySelectorAll('[class*="product"], [class*="item"], [class*="result"]');
-        items.forEach((item, i) => {
-          if (i >= 3 || products.length >= 3) return;
-          const linkEl = item.querySelector('a[href]');
-          const nameEl = item.querySelector('h2, h3, h4, [class*="name"], [class*="title"]');
-          const priceEl = item.querySelector('[class*="price"]');
-          const imgEl = item.querySelector('img');
-
-          if (linkEl && nameEl && nameEl.textContent?.trim()) {
-            const href = linkEl.getAttribute('href') || '';
-            products.push({
-              name: nameEl.textContent.trim().slice(0, 50),
-              price: priceEl?.textContent?.trim().replace(/\s+/g, ' ') || '価格を確認',
-              imageUrl: imgEl?.getAttribute('src') || imgEl?.getAttribute('data-src') || undefined,
-              url: href.startsWith('http') ? href : `${baseUrl}${href}`,
-            });
-          }
-        });
-      }
-    }
-  } catch (e) {
-    console.error(`Parse error for ${siteId}:`, e);
-  }
-
-  return products;
-}
-
-// サイトからデータ取得
-async function fetchSiteProducts(siteId: SiteId, keyword: string): Promise<ProductPreview[]> {
-  const searchUrl = buildSearchUrl(siteId, keyword);
-  const proxyUrl = `${CORS_PROXY}${encodeURIComponent(searchUrl)}`;
-
-  const response = await fetch(proxyUrl, {
-    headers: {
-      'Accept': 'text/html,application/xhtml+xml',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-
-  const html = await response.text();
-  const baseUrl = new URL(searchUrl).origin;
-  return parseProducts(html, siteId, baseUrl);
-}
 
 // 商品プレビューカード
 function ProductPreviewCard({ product }: { product: ProductPreview }) {
@@ -229,7 +92,13 @@ function ProductSkeleton() {
 
 export function SiteSearchLinks({ keyword, selectedSites }: SiteSearchLinksProps) {
   const [favorites, setFavorites] = useState<SiteId[]>([]);
-  const [results, setResults] = useState<Partial<Record<SiteId, SiteResult>>>({});
+
+  // 新しいフックを使用（順次取得+一括表示）
+  const { results, isLoading, completedCount, totalCount } = useSiteProductFetch({
+    keyword,
+    selectedSites,
+    batchMode: true,
+  });
 
   // お気に入りをローカルストレージから読み込み
   useEffect(() => {
@@ -242,48 +111,6 @@ export function SiteSearchLinks({ keyword, selectedSites }: SiteSearchLinksProps
       }
     }
   }, []);
-
-  // 各サイトからデータ取得
-  const fetchAllSites = useCallback(async () => {
-    if (!keyword.trim()) return;
-
-    // 初期状態をローディングに設定
-    const initialResults: Partial<Record<SiteId, SiteResult>> = {};
-    selectedSites.forEach((siteId) => {
-      initialResults[siteId] = { siteId, status: 'loading', products: [] };
-    });
-    setResults(initialResults);
-
-    // 各サイトを並列で取得
-    selectedSites.forEach(async (siteId) => {
-      try {
-        const products = await fetchSiteProducts(siteId, keyword);
-        setResults((prev) => ({
-          ...prev,
-          [siteId]: {
-            siteId,
-            status: products.length > 0 ? 'success' : 'error',
-            products,
-            error: products.length === 0 ? '商品が見つかりませんでした' : undefined,
-          },
-        }));
-      } catch (error) {
-        setResults((prev) => ({
-          ...prev,
-          [siteId]: {
-            siteId,
-            status: 'error',
-            products: [],
-            error: error instanceof Error ? error.message : '取得に失敗しました',
-          },
-        }));
-      }
-    });
-  }, [keyword, selectedSites]);
-
-  useEffect(() => {
-    fetchAllSites();
-  }, [fetchAllSites]);
 
   // お気に入りを切り替え
   const toggleFavorite = (siteId: SiteId, e: React.MouseEvent) => {
@@ -316,7 +143,14 @@ export function SiteSearchLinks({ keyword, selectedSites }: SiteSearchLinksProps
             <h3 className="font-medium text-gray-800">
               「<span className="text-blue-600 font-semibold">{keyword}</span>」の検索結果
             </h3>
-            <span className="text-xs text-gray-500">{sortedSites.length}サイト</span>
+            <div className="flex items-center gap-2">
+              {isLoading && (
+                <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full animate-pulse">
+                  取得中 {completedCount}/{totalCount}
+                </span>
+              )}
+              <span className="text-xs text-gray-500">{sortedSites.length}サイト</span>
+            </div>
           </div>
         </div>
 
@@ -335,8 +169,10 @@ export function SiteSearchLinks({ keyword, selectedSites }: SiteSearchLinksProps
               const info = SITE_INFO[siteId];
               const isFavorite = favorites.includes(siteId);
               const result = results[siteId];
-              const isLoading = result?.status === 'loading';
-              const hasProducts = result?.status === 'success' && result.products.length > 0;
+              const status = result?.status;
+              const isLoadingOrPending = status === 'loading' || status === 'pending';
+              const hasProducts = status === 'success' && result && result.products.length > 0;
+              const isSkipped = status === 'skipped';
 
               return (
                 <div
@@ -383,7 +219,7 @@ export function SiteSearchLinks({ keyword, selectedSites }: SiteSearchLinksProps
                         <span className="font-bold text-sm" style={{ color: site.logoColor }}>
                           {site.name}
                         </span>
-                        {isLoading && (
+                        {isLoadingOrPending && (
                           <span className="text-xs text-gray-400">取得中...</span>
                         )}
                         {hasProducts && (
@@ -391,7 +227,12 @@ export function SiteSearchLinks({ keyword, selectedSites }: SiteSearchLinksProps
                             {result.products.length}件取得
                           </span>
                         )}
-                        {result?.status === 'error' && (
+                        {isSkipped && (
+                          <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+                            リンクのみ
+                          </span>
+                        )}
+                        {status === 'error' && (
                           <span className="text-xs text-gray-400">リンクで検索</span>
                         )}
                       </div>
@@ -401,7 +242,7 @@ export function SiteSearchLinks({ keyword, selectedSites }: SiteSearchLinksProps
 
                   {/* 商品プレビュー or リンク */}
                   <div className="px-3 pb-3">
-                    {isLoading ? (
+                    {isLoadingOrPending ? (
                       <div className="grid grid-cols-3 gap-2">
                         <ProductSkeleton />
                         <ProductSkeleton />
