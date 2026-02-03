@@ -230,5 +230,145 @@ diff出力をClaude Codeに渡し、レビューを依頼します。`,
       tags: ['review', 'pull-request', 'quality'],
       difficulty: 'intermediate',
     },
+    {
+      title: 'SQL クエリの最適化支援',
+      summary: '遅いSQLクエリを分析して最適化案を提案',
+      description: `## 概要
+Claude Codeを使用して、パフォーマンスに問題のあるSQLクエリを分析し、最適化案を提案してもらいます。
+
+## 使用方法
+1. 遅いSQLクエリとテーブル構造を共有
+2. 実行計画（EXPLAIN）の結果も添付
+3. 最適化案とインデックス提案を取得
+
+## 最適化のポイント
+- 適切なインデックスの提案
+- クエリの書き換え
+- N+1問題の検出`,
+      category: 'data-analysis',
+      tags: ['sql', 'database', 'performance', 'optimization'],
+      difficulty: 'intermediate',
+      language: 'SQL',
+    },
+    {
+      title: 'Reactコンポーネントの新規作成',
+      summary: '要件からReactコンポーネントを自動生成',
+      description: `## 概要
+Claude Codeに要件を伝えるだけで、Reactコンポーネントを自動生成します。
+
+## 使用方法
+1. コンポーネントの要件を説明
+2. 使用するライブラリを指定（Tailwind CSS等）
+3. 生成されたコードを確認・調整
+
+## 生成例
+- フォームコンポーネント
+- モーダルダイアログ
+- データテーブル
+- ナビゲーションメニュー`,
+      category: 'code-generation',
+      tags: ['react', 'component', 'frontend', 'ui'],
+      difficulty: 'beginner',
+      language: 'TypeScript',
+      framework: 'React',
+      promptExample: 'ユーザー登録フォームのReactコンポーネントを作成してください。名前、メール、パスワードのフィールドを含め、バリデーションも実装してください。',
+    },
+    {
+      title: 'CI/CDパイプラインの構築',
+      summary: 'GitHub Actionsのワークフローを自動生成',
+      description: `## 概要
+Claude Codeを使用して、プロジェクトに適したCI/CDパイプラインを構築します。
+
+## 対応内容
+- テスト自動実行
+- リント・フォーマットチェック
+- ビルド・デプロイ
+- 環境変数の管理
+
+## 使用方法
+プロジェクト構成を説明し、必要なワークフローを依頼します。`,
+      category: 'devops',
+      tags: ['github-actions', 'ci-cd', 'automation', 'deployment'],
+      difficulty: 'intermediate',
+      language: 'YAML',
+    },
+    {
+      title: 'コードの説明とドキュメント化',
+      summary: '複雑なコードを解説し、コメントやREADMEを生成',
+      description: `## 概要
+Claude Codeに複雑なコードを読み込ませ、わかりやすい説明やドキュメントを生成します。
+
+## 活用シーン
+- 新しいプロジェクトへの参加時
+- レガシーコードの理解
+- チームメンバーへの共有資料作成
+
+## 生成物
+- インラインコメント
+- 関数ドキュメント
+- README.md
+- アーキテクチャ図の説明`,
+      category: 'documentation',
+      tags: ['documentation', 'readme', 'comment', 'explanation'],
+      difficulty: 'beginner',
+    },
+    {
+      title: 'セキュリティ脆弱性のチェック',
+      summary: 'コードのセキュリティリスクを検出して修正案を提示',
+      description: `## 概要
+Claude Codeを使用して、コード内のセキュリティ脆弱性を検出し、修正案を提示します。
+
+## 検出対象
+- SQLインジェクション
+- XSS（クロスサイトスクリプティング）
+- 認証・認可の問題
+- 機密情報の漏洩リスク
+- 依存関係の脆弱性
+
+## 使用方法
+対象コードを共有し、セキュリティレビューを依頼します。`,
+      category: 'code-review',
+      tags: ['security', 'vulnerability', 'owasp', 'audit'],
+      difficulty: 'advanced',
+    },
+    {
+      title: 'APIクライアントの自動生成',
+      summary: 'OpenAPI仕様からTypeScript APIクライアントを生成',
+      description: `## 概要
+OpenAPI（Swagger）仕様書からTypeScriptの型安全なAPIクライアントを自動生成します。
+
+## 生成物
+- 型定義ファイル
+- APIクライアントクラス
+- リクエスト/レスポンスの型
+- エラーハンドリング
+
+## メリット
+- 型安全なAPI呼び出し
+- 自動補完の活用
+- ドキュメントとの同期`,
+      category: 'code-generation',
+      tags: ['openapi', 'typescript', 'api-client', 'codegen'],
+      difficulty: 'intermediate',
+      language: 'TypeScript',
+    },
+    {
+      title: 'Git コミットメッセージの生成',
+      summary: '変更内容から適切なコミットメッセージを自動生成',
+      description: `## 概要
+Claude Codeを使用して、git diffの内容から適切なコミットメッセージを自動生成します。
+
+## 特徴
+- Conventional Commits形式に対応
+- 変更内容の要約
+- Breaking Changesの検出
+
+## 使用方法
+git diffの出力を渡すだけで、適切なコミットメッセージを提案します。`,
+      category: 'automation',
+      tags: ['git', 'commit', 'conventional-commits', 'automation'],
+      difficulty: 'beginner',
+      promptExample: 'このdiffから適切なコミットメッセージを生成してください。Conventional Commits形式でお願いします。',
+    },
   ];
 }
