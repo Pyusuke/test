@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { JsonStorage, UseCaseSearchEngine, type CategoryId, type Difficulty } from '@usecases/core';
-import path from 'path';
-
-const dataDir = path.join(process.cwd(), 'data');
-const storage = new JsonStorage(dataDir);
-const searchEngine = new UseCaseSearchEngine(storage);
+import { UseCaseSearchEngine, type CategoryId, type Difficulty } from '@usecases/core';
+import { getStorage } from '@/lib/storage';
 
 export async function GET(request: NextRequest) {
   try {
+    const storage = getStorage();
+    const searchEngine = new UseCaseSearchEngine(storage);
+
     const { searchParams } = new URL(request.url);
 
     const keyword = searchParams.get('keyword') || undefined;
@@ -40,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result, {
       headers: {
-        'Cache-Control': 'public, max-age=60',
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
       },
     });
   } catch (error) {
@@ -51,3 +50,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const dynamic = 'force-dynamic';

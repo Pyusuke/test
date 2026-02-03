@@ -5,7 +5,9 @@
   "description": "Multi-site parts search application",
   "scripts": {
     "dev": "pnpm --filter @parts-search/web dev",
+    "dev:usecases": "pnpm --filter @usecases/web dev",
     "build": "pnpm -r build",
+    "build:usecases": "pnpm --filter @usecases/core build && pnpm --filter @usecases/collector-base build && pnpm --filter @usecases/collector-manual build && pnpm --filter @usecases/web build",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "clean": "pnpm -r clean"

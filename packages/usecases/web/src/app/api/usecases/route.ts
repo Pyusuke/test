@@ -1,39 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { JsonStorage, UseCaseSearchEngine, type CategoryId } from '@usecases/core';
-import { ManualCollector, createSampleUseCases } from '@usecases/collector-manual';
-import path from 'path';
-
-// ストレージのパスを設定
-const dataDir = path.join(process.cwd(), 'data');
-const storage = new JsonStorage(dataDir);
-const searchEngine = new UseCaseSearchEngine(storage);
-
-// 初期データの投入フラグ
-let initialized = false;
-
-async function ensureInitialized() {
-  if (initialized) return;
-
-  const count = await storage.count();
-  if (count === 0) {
-    // サンプルデータを投入
-    const collector = new ManualCollector();
-    const samples = createSampleUseCases();
-    collector.addUseCases(samples);
-    const result = await collector.collect();
-
-    // ステータスをpublishedに設定して保存
-    for (const uc of result.usecases) {
-      await storage.create({ ...uc, status: 'published' });
-    }
-  }
-
-  initialized = true;
-}
+import { UseCaseSearchEngine, type CategoryId } from '@usecases/core';
+import { getStorage, updateCache } from '@/lib/storage';
 
 export async function GET(request: NextRequest) {
   try {
-    await ensureInitialized();
+    const storage = getStorage();
+    const searchEngine = new UseCaseSearchEngine(storage);
 
     const { searchParams } = new URL(request.url);
 
@@ -56,7 +28,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result, {
       headers: {
-        'Cache-Control': 'public, max-age=60',
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
       },
     });
   } catch (error) {
@@ -70,10 +42,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await ensureInitialized();
-
+    const storage = getStorage();
     const body = await request.json();
     const usecase = await storage.create(body);
+
+    updateCache(storage);
 
     return NextResponse.json(usecase, { status: 201 });
   } catch (error) {
@@ -84,3 +57,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const dynamic = 'force-dynamic';

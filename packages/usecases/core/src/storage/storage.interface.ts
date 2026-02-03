@@ -6,6 +6,10 @@ import type { UseCase, CreateUseCase, UpdateUseCase, Metrics } from '../types';
 export interface StorageSearchOptions {
   keyword?: string;
   status?: UseCase['status'];
+  categories?: UseCase['category'][];
+  tags?: string[];
+  difficulty?: UseCase['difficulty'];
+  language?: string;
   limit?: number;
   offset?: number;
 }

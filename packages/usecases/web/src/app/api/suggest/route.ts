@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { JsonStorage, SuggestionEngine, type CategoryId, type Difficulty } from '@usecases/core';
-import path from 'path';
-
-const dataDir = path.join(process.cwd(), 'data');
-const storage = new JsonStorage(dataDir);
-const suggestionEngine = new SuggestionEngine(storage);
+import { SuggestionEngine, type CategoryId, type Difficulty } from '@usecases/core';
+import { getStorage } from '@/lib/storage';
 
 export async function POST(request: NextRequest) {
   try {
+    const storage = getStorage();
+    const suggestionEngine = new SuggestionEngine(storage);
+
     const body = await request.json();
 
     const {
@@ -53,6 +52,9 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const storage = getStorage();
+    const suggestionEngine = new SuggestionEngine(storage);
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'popular';
     const limit = parseInt(searchParams.get('limit') || '10', 10);
@@ -66,7 +68,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ usecases }, {
       headers: {
-        'Cache-Control': 'public, max-age=300',
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
       },
     });
   } catch (error) {
@@ -77,3 +79,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const dynamic = 'force-dynamic';

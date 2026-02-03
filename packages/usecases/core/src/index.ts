@@ -2,7 +2,7 @@
 export * from './types';
 
 // Storage
-export { JsonStorage } from './storage';
+export { JsonStorage, MemoryStorage } from './storage';
 export type { Storage, StorageSearchOptions } from './storage';
 
 // Engines

@@ -1,0 +1,6 @@
+{
+  "buildCommand": "cd ../.. && pnpm install && pnpm --filter @usecases/core build && pnpm --filter @usecases/collector-base build && pnpm --filter @usecases/collector-manual build && pnpm --filter @usecases/web build",
+  "outputDirectory": ".next",
+  "installCommand": "echo 'Install handled in buildCommand'",
+  "framework": "nextjs"
+}
